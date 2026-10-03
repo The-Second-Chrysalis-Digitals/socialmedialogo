@@ -47,6 +47,7 @@ const state = {
   faceEngine: "",
   faceSupport: "checking",
   scanInProgress: false,
+  loadingPhotos: false,
   exporting: false,
   format: "png",
   background: "#ffffff",
@@ -368,40 +369,54 @@ function loadImageFile(file, index) {
 }
 
 async function loadPhotoBatch(fileList) {
+  if (state.loadingPhotos || state.exporting || state.scanInProgress) return;
   const imageFiles = Array.from(fileList || []).filter((file) => file.type.startsWith("image/"));
+  els.photoInput.value = "";
   if (!imageFiles.length) return;
 
-  const limited = imageFiles.slice(0, MAX_PHOTOS);
-  const skipped = imageFiles.length - limited.length;
-
-  clearPhotos();
-  syncControls();
-  renderPreview();
-
-  for (let index = 0; index < limited.length; index += 1) {
-    setStatus(`Loading ${index + 1}/${limited.length}...`);
-    try {
-      const photo = await loadImageFile(limited[index], index);
-      state.photos.push(photo);
-      if (!state.activePhotoId) state.activePhotoId = photo.id;
-      else releasePhotoImage(photo);
-      renderPhotoList();
-      syncControls();
-      renderPreview();
-    } catch (error) {
-      setStatus(error.message);
-    }
-    await delay();
+  const available = Math.max(0, MAX_PHOTOS - state.photos.length);
+  if (!available) {
+    setStatus(`Batch limit reached (${MAX_PHOTOS} photos).`);
+    return;
   }
+  const limited = imageFiles.slice(0, available);
+  const skipped = imageFiles.length - limited.length;
+  const added = [];
+  let failed = 0;
 
-  const loaded = state.photos.length;
-  const tail = skipped > 0 ? ` ${skipped} skipped.` : "";
-  setStatus(`${plural(loaded, "photo")} loaded.${tail}`);
+  state.loadingPhotos = true;
   syncControls();
-  renderPreview();
 
-  if (loaded && canDetectFaces() && state.faceAware) {
-    await scanBatchPhotos({ automatic: true });
+  try {
+    for (let index = 0; index < limited.length; index += 1) {
+      setStatus(`Adding photos ${index + 1}/${limited.length}...`);
+      try {
+        const photo = await loadImageFile(limited[index], state.photos.length);
+        if (!added.length) clearReadyDownload();
+        state.photos.push(photo);
+        added.push(photo);
+        if (!state.activePhotoId) state.activePhotoId = photo.id;
+        else releasePhotoImage(photo);
+        syncControls();
+        renderPreview();
+      } catch (error) {
+        failed += 1;
+        setStatus(error.message);
+      }
+      await delay();
+    }
+
+    if (added.length && canDetectFaces() && state.faceAware) {
+      await scanBatchPhotos({ automatic: true, photos: added });
+    }
+
+    const skippedMessage = skipped ? ` ${skipped} skipped (150-photo limit).` : "";
+    const failedMessage = failed ? ` ${failed} could not be opened.` : "";
+    setStatus(`${plural(added.length, "photo")} added. ${state.photos.length}/${MAX_PHOTOS} in batch.${skippedMessage}${failedMessage}`);
+  } finally {
+    state.loadingPhotos = false;
+    syncControls();
+    renderPreview();
   }
 }
 
@@ -543,7 +558,7 @@ function syncControls() {
   const photo = activePhoto();
   const hasPhoto = Boolean(photo);
   const hasBatch = state.photos.length > 0;
-  const busy = state.exporting || state.scanInProgress;
+  const busy = state.exporting || state.scanInProgress || state.loadingPhotos;
   const videoReady = state.videoSupport === "ready" && Boolean(state.videoConfig);
 
   els.activePresetName.textContent = preset.name;
@@ -552,6 +567,7 @@ function syncControls() {
   els.frameEnabled.checked = state.frameEnabled;
   els.frameEnabled.disabled = state.frameStatus === "loading" || state.exporting;
   els.photoInput.disabled = busy;
+  els.resetAll.disabled = busy;
   els.logoInput.disabled = state.exporting;
 
   if (state.frameStatus === "loading") {
@@ -1222,22 +1238,23 @@ async function scanCurrentPhoto() {
 }
 
 async function scanBatchPhotos(options = {}) {
-  if (!state.photos.length || !canDetectFaces()) return;
+  const photos = options.photos ?? state.photos;
+  if (!photos.length || !canDetectFaces()) return;
 
   state.scanInProgress = true;
   syncControls();
 
   let faceTotal = 0;
-  for (let index = 0; index < state.photos.length; index += 1) {
-    const photo = state.photos[index];
-    setStatus(`Scanning faces ${index + 1}/${state.photos.length}...`);
+  for (let index = 0; index < photos.length; index += 1) {
+    const photo = photos[index];
+    setStatus(`Scanning faces ${index + 1}/${photos.length}...`);
     faceTotal += await scanPhotoFaces(photo);
     await delay();
   }
 
   state.scanInProgress = false;
   const prefix = options.automatic ? "Automatic face protection complete." : "Face scan complete.";
-  setStatus(`${prefix} ${plural(faceTotal, "face")} found across ${plural(state.photos.length, "photo")}.`);
+  setStatus(`${prefix} ${plural(faceTotal, "face")} found across ${plural(photos.length, "photo")}.`);
   syncControls();
   renderPreview();
 }

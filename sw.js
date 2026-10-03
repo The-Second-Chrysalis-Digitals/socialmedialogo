@@ -1,4 +1,4 @@
-const CACHE_NAME = "social-photo-exporter-blur-v2";
+const CACHE_NAME = "social-photo-exporter-add-photos-v3";
 const CORE_ASSETS = [
   "./",
   "index.html",

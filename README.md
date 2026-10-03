@@ -2,6 +2,8 @@
 
 A small local browser app for uploading up to 150 photos, applying a logo, and exporting common social media image sizes.
 
+Use `Add photos` as many times as needed to build a batch of up to 150 photos. New uploads are added after the existing photos; their edits, face scans, logo, and current selection remain unchanged. Only new photos are scanned automatically. The reset button clears the batch and starts over.
+
 Public app: `https://the-second-chrysalis-digitals.github.io/socialmedialogo/`.
 
 European Portuguese edition (`pt-PT`): open `http://127.0.0.1:8765/pt/` locally or visit `https://the-second-chrysalis-digitals.github.io/socialmedialogo/pt/`. The Portuguese edition is attributed to Susana Quintal.
