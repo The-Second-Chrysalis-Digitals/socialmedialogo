@@ -2,7 +2,9 @@
 
 A small local browser app for uploading up to 150 photos, applying a logo, and exporting common social media image sizes.
 
-European Portuguese edition (`pt-PT`): open `http://127.0.0.1:8765/pt/` locally or visit `https://suqui13.github.io/socialmedialogo/pt/`. The Portuguese edition is attributed to Susana Quintal.
+Public app: `https://the-second-chrysalis-digitals.github.io/socialmedialogo/`.
+
+European Portuguese edition (`pt-PT`): open `http://127.0.0.1:8765/pt/` locally or visit `https://the-second-chrysalis-digitals.github.io/socialmedialogo/pt/`. The Portuguese edition is attributed to Susana Quintal.
 
 ## Mobile
 
