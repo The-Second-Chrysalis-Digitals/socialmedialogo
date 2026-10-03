@@ -57,6 +57,14 @@ Video transitions include dissolve, horizontal and vertical slide, zoom, three d
 
 Choose a local audio file in `Music` to include it in the MP4. Adjust the volume and start time, repeat shorter music with `Loop music`, and use `Fade in / out` for a softer beginning and ending. The finished video can be played with sound before saving. Audio is processed locally and encoded as AAC; browsers without AAC encoding can still export silent videos.
 
+## Settings And App Icon
+
+Open the gear button in the header to choose default photo and video sizes, transitions, colour effects, and music options. Defaults are remembered on this device unless you turn that option off. Export or import a settings JSON file to transfer preferences between devices. Settings files do not contain photos, logos, or music.
+
+The new app icon appears in the header, browser tab, and installed app. Its original bitmap and installation sizes are in `icons/social-photo-exporter-v2-*`. Design notes are in `icons/ICON-DESIGN.md`.
+
+User accounts and private cloud project storage are not configured in this GitHub Pages edition. They require a separately configured cloud service; no photos or music are uploaded automatically.
+
 ## APCM Frames
 
 The included APCM transparent frame overlays are locked to these presets:
@@ -72,3 +80,5 @@ The photo is drawn first, then the APCM frame is drawn on top, so the logo and l
 The local face-detection fallback uses tracking.js 1.1.3 under its BSD license. Its license is included at `vendor/tracking/LICENSE.md`.
 
 MP4 packaging uses mp4-muxer 5.2.1 under its MIT license. Its license is included at `vendor/mp4-muxer/LICENSE`.
+
+The settings icon is from Lucide under its ISC license, included at `icons/LUCIDE-LICENSE.txt`.

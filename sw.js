@@ -1,10 +1,11 @@
-const CACHE_NAME = "social-photo-exporter-music-effects-v5";
+const CACHE_NAME = "social-photo-exporter-settings-icon-v6";
 const CORE_ASSETS = [
   "./",
   "index.html",
   "styles.css",
   "app.js",
   "pwa.js",
+  "settings.js",
   "manifest.webmanifest",
   "pt/",
   "pt/index.html",
@@ -14,6 +15,11 @@ const CORE_ASSETS = [
   "icons/app-icon-180.png",
   "icons/app-icon-192.png",
   "icons/app-icon-512.png",
+  "icons/social-photo-exporter-v2-32.png",
+  "icons/social-photo-exporter-v2-180.png",
+  "icons/social-photo-exporter-v2-192.png",
+  "icons/social-photo-exporter-v2-512.png",
+  "icons/settings-lucide.svg",
   "frames/apcm-4x5.png",
   "frames/apcm-story.png",
   "frames/apcm-16x9.png",

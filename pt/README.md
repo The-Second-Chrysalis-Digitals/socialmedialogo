@@ -8,6 +8,12 @@ Use `Adicionar fotos` várias vezes para juntar fotografias ao mesmo lote, até 
 
 Abra `Ver e ordenar` na área Lote ou Exportar para ver todas as fotografias. Selecione uma miniatura para pré-visualizar a imagem ou o vídeo com a moldura e o logótipo. No computador, pode arrastar as miniaturas. Também pode usar as setas ou indicar uma posição e premir o botão de mover. A numeração dos ficheiros e a sequência do vídeo seguem esta ordem. As novas fotografias são acrescentadas ao fim da sequência atual.
 
+## Definições e ícone da aplicação
+
+Abra o botão de definições no cabeçalho para escolher os formatos predefinidos de fotografia e vídeo, as transições, os efeitos de cor e as opções de música. As predefinições são guardadas neste dispositivo, a menos que desative essa opção. Pode exportar e importar um ficheiro JSON de definições para transferir as preferências entre dispositivos. Esse ficheiro não contém fotografias, logótipos ou música.
+
+O novo ícone aparece no cabeçalho, no separador do navegador e na aplicação instalada. Esta edição do GitHub Pages ainda não tem contas de utilizador nem armazenamento privado de projetos na nuvem. Não são enviados ficheiros automaticamente.
+
 ## Música e efeitos de vídeo
 
 Na área de exportação de vídeo, escolha um ficheiro de áudio em `Música` para o incluir no MP4. Pode ajustar o volume e o ponto de início, repetir a música e ativar a entrada e saída suaves. O vídeo concluído pode ser reproduzido com som antes de guardar. O áudio é processado localmente; nos navegadores sem suporte para codificação AAC, pode continuar a exportar vídeos sem música.

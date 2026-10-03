@@ -179,6 +179,7 @@ const els = {
   jpegQuality: document.querySelector("#jpegQuality"),
   jpegQualityValue: document.querySelector("#jpegQualityValue"),
   resetAll: document.querySelector("#resetAll"),
+  openSettings: document.querySelector("#openSettings"),
   anchorGrid: document.querySelector("#anchorGrid"),
 };
 
@@ -803,6 +804,7 @@ function syncControls() {
   els.photoInput.disabled = busy;
   els.openPhotoOrderButtons.forEach((button) => { button.disabled = !hasBatch || busy; });
   els.resetAll.disabled = busy;
+  els.openSettings.disabled = busy;
   els.logoInput.disabled = state.exporting;
 
   if (state.frameStatus === "loading") {
