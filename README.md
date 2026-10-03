@@ -35,6 +35,8 @@ Images are processed in the browser with canvas. Uploaded photos and logos stay 
 
 Face-aware crop scans photos automatically after upload. It uses the browser's on-device face detector when available and includes a local tracking.js fallback for other browsers. Detected faces are kept inside a protected crop area; when a full-bleed crop cannot contain everyone, the app adds a softly blurred photo background instead of cutting a face. It detects face locations only and does not identify or name people.
 
+For photos that must not be cropped, select the photo and enable `Full photo + blurred background` in the Photo controls (`Foto inteira + fundo desfocado` in Portuguese). The complete photo stays centred over a softly blurred copy, with the logo and frame on top. This setting is saved separately for each photo and is used in image, batch, and video exports. Use `Apply to batch` to copy the selected photo's setting to every photo. Disable the option to restore its previous zoom and position.
+
 Use `Save batch current size` or `Save batch all sizes` to write finished images directly into the app's `EXPORTS` folder. The app creates a new named folder for every batch and can open it when the export finishes. If the local folder service is unavailable or stops during an export, the same buttons prepare a ZIP backup instead of abandoning the batch.
 
 ZIP exports save directly into a new folder under `EXPORTS` when the offline launcher is running. On a public web host, the same Save button falls back to a normal browser download.

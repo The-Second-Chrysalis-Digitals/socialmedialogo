@@ -158,6 +158,14 @@
               <button class="segment active" data-fit="cover" type="button">Preencher</button>
               <button class="segment" data-fit="contain" type="button">Conter</button>
             </div>
+            <label class="check-field">
+              <input id="photoBlurBackground" type="checkbox" disabled>
+              <span>Foto inteira + fundo desfocado</span>
+            </label>
+            <button class="secondary-button compact-button" id="applyPhotoBlurToBatch" type="button" disabled>
+              <svg><use href="#icon-image"></use></svg>
+              Aplicar ao lote
+            </button>
             <label class="range-field">
               <span>Zoom</span>
               <input id="photoZoom" type="range" min="50" max="300" step="1" value="100">
@@ -390,6 +398,6 @@
     <script src="../vendor/tracking/data/face-min.js"></script>
     <script src="../vendor/mp4-muxer/mp4-muxer.js"></script>
     <script src="../pwa.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=20261003-blur"></script>
   </body>
 </html>

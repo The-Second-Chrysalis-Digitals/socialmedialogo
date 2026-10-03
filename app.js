@@ -110,6 +110,8 @@ const els = {
   openExportFolder: document.querySelector("#openExportFolder"),
   folderExportStatus: document.querySelector("#folderExportStatus"),
   photoZoom: document.querySelector("#photoZoom"),
+  photoBlurBackground: document.querySelector("#photoBlurBackground"),
+  applyPhotoBlurToBatch: document.querySelector("#applyPhotoBlurToBatch"),
   photoZoomValue: document.querySelector("#photoZoomValue"),
   photoX: document.querySelector("#photoX"),
   photoXValue: document.querySelector("#photoXValue"),
@@ -341,6 +343,7 @@ function photoDefaults(file, image, url, index) {
     sourceHeight: image.naturalHeight || image.height,
     thumbnail: createPhotoThumbnail(image),
     imagePromise: null,
+    blurBackground: false,
     zoom: 1,
     offset: { x: 0, y: 0 },
     faces: null,
@@ -616,7 +619,12 @@ function syncControls() {
 
   document.querySelectorAll(".segment").forEach((button) => {
     button.classList.toggle("active", button.dataset.fit === state.fit);
+    button.disabled = Boolean(photo?.blurBackground) || state.exporting;
   });
+
+  els.photoBlurBackground.checked = Boolean(photo?.blurBackground);
+  els.photoBlurBackground.disabled = !hasPhoto || busy;
+  els.applyPhotoBlurToBatch.disabled = state.photos.length < 2 || busy;
 
   document.querySelectorAll(".layer-toggle button").forEach((button) => {
     button.classList.toggle("active", button.dataset.layer === state.activeLayer);
@@ -632,7 +640,7 @@ function syncControls() {
   els.photoYValue.textContent = `${Math.round(offset.y * 100)}`;
 
   [els.photoZoom, els.photoX, els.photoY, els.centerPhoto].forEach((control) => {
-    control.disabled = !hasPhoto || state.exporting;
+    control.disabled = !hasPhoto || Boolean(photo?.blurBackground) || state.exporting;
   });
 
   els.logoSize.value = Math.round(state.logoSize * 100);
@@ -729,9 +737,25 @@ function drawPhotoBackdrop(localCtx, preset, photo) {
   const height = base.height * overscan;
 
   localCtx.save();
-  localCtx.filter = `blur(${Math.max(12, Math.round(Math.min(preset.width, preset.height) * 0.025))}px)`;
-  localCtx.drawImage(image, (preset.width - width) / 2, (preset.height - height) / 2, width, height);
-  localCtx.filter = "none";
+  if ("filter" in localCtx) {
+    localCtx.filter = `blur(${Math.max(12, Math.round(Math.min(preset.width, preset.height) * 0.025))}px)`;
+    localCtx.drawImage(image, (preset.width - width) / 2, (preset.height - height) / 2, width, height);
+    localCtx.filter = "none";
+  } else {
+    // Small, smoothly enlarged pixels provide a soft backdrop on browsers without canvas filters.
+    const backdrop = document.createElement("canvas");
+    const scale = 32 / Math.max(preset.width, preset.height);
+    backdrop.width = Math.max(1, Math.round(preset.width * scale));
+    backdrop.height = Math.max(1, Math.round(preset.height * scale));
+    const backdropCtx = backdrop.getContext("2d");
+    backdropCtx.imageSmoothingQuality = "high";
+    backdropCtx.drawImage(image, (preset.width - width) * scale / 2, (preset.height - height) * scale / 2, width * scale, height * scale);
+    localCtx.imageSmoothingEnabled = true;
+    localCtx.imageSmoothingQuality = "high";
+    localCtx.drawImage(backdrop, 0, 0, preset.width, preset.height);
+    backdrop.width = 0;
+    backdrop.height = 0;
+  }
   localCtx.fillStyle = "rgba(0, 0, 0, 0.1)";
   localCtx.fillRect(0, 0, preset.width, preset.height);
   localCtx.restore();
@@ -739,6 +763,18 @@ function drawPhotoBackdrop(localCtx, preset, photo) {
 
 function photoPlacement(photo, preset) {
   const image = photo.image;
+  if (photo.blurBackground) {
+    const fullPhoto = fitRect(image.width, image.height, preset.width, preset.height, "contain");
+    return {
+      x: (preset.width - fullPhoto.width) / 2,
+      y: (preset.height - fullPhoto.height) / 2,
+      width: fullPhoto.width,
+      height: fullPhoto.height,
+      offsetX: 0,
+      offsetY: 0,
+      needsBackdrop: true,
+    };
+  }
   const base = fitRect(image.width, image.height, preset.width, preset.height, state.fit);
   const drawWidth = base.width * photo.zoom;
   const drawHeight = base.height * photo.zoom;
@@ -979,7 +1015,7 @@ function updateDrag(event) {
   if (drag.layer === "logo") {
     state.logoPosition.x = clamp(state.logoPosition.x + dx, -0.2, 1.2);
     state.logoPosition.y = clamp(state.logoPosition.y + dy, -0.2, 1.2);
-  } else if (photo) {
+  } else if (photo && !photo.blurBackground) {
     photo.offset.x = clamp(photo.offset.x + dx, -0.6, 0.6);
     photo.offset.y = clamp(photo.offset.y + dy, -0.6, 0.6);
   }
@@ -1922,6 +1958,23 @@ function bindEvents() {
 
   els.scanCurrent.addEventListener("click", scanCurrentPhoto);
   els.scanBatch.addEventListener("click", scanBatchPhotos);
+
+  els.photoBlurBackground.addEventListener("change", () => {
+    const photo = activePhoto();
+    if (!photo || state.exporting || state.scanInProgress) return;
+    photo.blurBackground = els.photoBlurBackground.checked;
+    syncControls();
+    renderPreview();
+  });
+
+  els.applyPhotoBlurToBatch.addEventListener("click", () => {
+    const photo = activePhoto();
+    if (!photo || state.exporting || state.scanInProgress) return;
+    state.photos.forEach((item) => { item.blurBackground = photo.blurBackground; });
+    setStatus(photo.blurBackground ? "Full photo with blurred background applied to batch." : "Blurred background removed from batch.");
+    syncControls();
+    renderPreview();
+  });
 
   els.photoZoom.addEventListener("input", () => {
     const photo = activePhoto();
