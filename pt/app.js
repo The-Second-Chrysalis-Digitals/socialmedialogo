@@ -2,6 +2,15 @@ const MAX_PHOTOS = 150;
 const DEFAULT_VIDEO_PRESET_ID = "instagram-portrait";
 const VIDEO_FPS = 30;
 const VIDEO_BITRATE = 6_000_000;
+const AUDIO_SAMPLE_RATE = 48_000;
+const AUDIO_CHANNELS = 2;
+const VIDEO_COLOUR_FILTERS = {
+  none: "none",
+  mono: "grayscale(1)",
+  warm: "sepia(0.35) saturate(1.2)",
+  cool: "sepia(0.25) hue-rotate(160deg)",
+  vivid: "saturate(1.4) contrast(1.08)",
+};
 const LOCAL_EXPORT_SERVER = "http://127.0.0.1:8765";
 
 const VIDEO_FORMATS = {
@@ -56,6 +65,17 @@ const state = {
   jpegQuality: 0.92,
   videoPresetId: DEFAULT_VIDEO_PRESET_ID,
   videoTransition: "fade",
+  videoColourEffect: "none",
+  music: null,
+  musicLoading: false,
+  musicSupport: "checking",
+  musicConfig: null,
+  musicMessage: "A verificar suporte para música...",
+  musicVolume: 0.7,
+  musicStart: 0,
+  musicLoop: true,
+  musicFade: true,
+  videoPreviewUrl: null,
   videoPhotoDuration: 2,
   videoTransitionDuration: 0.6,
   videoSupport: "checking",
@@ -115,6 +135,18 @@ const els = {
   videoFormatButtons: Array.from(document.querySelectorAll(".video-format-button")),
   cancelVideo: document.querySelector("#cancelVideo"),
   videoTransition: document.querySelector("#videoTransition"),
+  videoColourEffect: document.querySelector("#videoColourEffect"),
+  musicInput: document.querySelector("#musicInput"),
+  musicName: document.querySelector("#musicName"),
+  musicStatus: document.querySelector("#musicStatus"),
+  musicPlayer: document.querySelector("#musicPlayer"),
+  musicVolume: document.querySelector("#musicVolume"),
+  musicVolumeValue: document.querySelector("#musicVolumeValue"),
+  musicStart: document.querySelector("#musicStart"),
+  musicLoop: document.querySelector("#musicLoop"),
+  musicFade: document.querySelector("#musicFade"),
+  removeMusic: document.querySelector("#removeMusic"),
+  videoPlayer: document.querySelector("#videoPlayer"),
   videoPhotoDuration: document.querySelector("#videoPhotoDuration"),
   videoTransitionDuration: document.querySelector("#videoTransitionDuration"),
   videoProgress: document.querySelector("#videoProgress"),
@@ -595,7 +627,10 @@ function renderOrderPreview() {
     button.setAttribute("aria-pressed", String(active));
   });
   if (photo?.image?.naturalWidth) {
-    drawComposition(els.photoOrderCanvas, preset, { photo, forceOpaque: state.orderPreviewMode === "video" });
+    drawComposition(els.photoOrderCanvas, preset, {
+      photo, forceOpaque: state.orderPreviewMode === "video",
+      videoEffect: state.orderPreviewMode === "video" ? state.videoColourEffect : "none",
+    });
   } else {
     els.photoOrderCanvas.width = 1;
     els.photoOrderCanvas.height = 1;
@@ -763,7 +798,7 @@ function syncControls() {
   const photo = activePhoto();
   const hasPhoto = Boolean(photo);
   const hasBatch = state.photos.length > 0;
-  const busy = state.exporting || state.scanInProgress || state.loadingPhotos;
+  const busy = state.exporting || state.scanInProgress || state.loadingPhotos || state.musicLoading;
   const videoReady = state.videoSupport === "ready" && Boolean(state.videoConfig);
 
   els.activePresetName.textContent = preset.name;
@@ -821,11 +856,15 @@ function syncControls() {
   els.videoExportSize.textContent = `${selectedVideoFormat.ratio} / ${selectedVideoPreset.width}x${selectedVideoPreset.height}`;
   els.videoExportButtonText.textContent = `Exportar MP4 ${selectedVideoFormat.ratio}`;
   els.videoTransition.value = state.videoTransition;
+  els.videoColourEffect.value = state.videoColourEffect;
+  els.videoColourEffect.disabled = busy || !("filter" in els.canvas.getContext("2d"));
+  syncMusicControls(busy);
   els.videoPhotoDuration.value = String(state.videoPhotoDuration);
   els.videoTransitionDuration.value = String(state.videoTransitionDuration);
   [els.videoTransition, els.videoPhotoDuration, els.videoTransitionDuration, ...els.videoFormatButtons].forEach((control) => {
     control.disabled = busy;
   });
+  els.videoTransitionDuration.disabled = busy || state.videoTransition === "cut";
   els.videoFormatButtons.forEach((button) => {
     const active = button.dataset.videoPreset === state.videoPresetId;
     button.classList.toggle("active", active);
@@ -911,7 +950,10 @@ function drawComposition(canvas, preset, options = {}) {
   }
 
   if (photo) {
+    localCtx.save();
+    if (options.videoEffect && "filter" in localCtx) localCtx.filter = VIDEO_COLOUR_FILTERS[options.videoEffect] || "none";
     const placement = drawPhoto(localCtx, preset, photo);
+    localCtx.restore();
     if (options.preview && state.faceAware && photo.faces?.length) {
       drawFaceGuides(localCtx, photo, placement);
     }
@@ -961,7 +1003,8 @@ function drawPhotoBackdrop(localCtx, preset, photo) {
 
   localCtx.save();
   if ("filter" in localCtx) {
-    localCtx.filter = `blur(${Math.max(12, Math.round(Math.min(preset.width, preset.height) * 0.025))}px)`;
+    const colourFilter = localCtx.filter === "none" ? "" : localCtx.filter;
+    localCtx.filter = `${colourFilter} blur(${Math.max(12, Math.round(Math.min(preset.width, preset.height) * 0.025))}px)`.trim();
     localCtx.drawImage(image, (preset.width - width) / 2, (preset.height - height) / 2, width, height);
     localCtx.filter = "none";
   } else {
@@ -1389,6 +1432,172 @@ async function setupVideoEncoder() {
   syncControls();
 }
 
+function invalidateReadyVideo() {
+  if (state.readyDownload && /\.mp4$/i.test(state.readyDownload.filename)) clearReadyDownload();
+}
+
+function clearVideoPreview() {
+  els.videoPlayer.pause();
+  els.videoPlayer.removeAttribute("src");
+  els.videoPlayer.load();
+  els.videoPlayer.hidden = true;
+  if (state.videoPreviewUrl) URL.revokeObjectURL(state.videoPreviewUrl);
+  state.videoPreviewUrl = null;
+}
+
+function clearMusic() {
+  els.musicPlayer.pause();
+  els.musicPlayer.removeAttribute("src");
+  els.musicPlayer.load();
+  els.musicPlayer.hidden = true;
+  if (state.music?.url) URL.revokeObjectURL(state.music.url);
+  state.music = null;
+  state.musicStart = 0;
+  els.musicInput.value = "";
+  state.musicMessage = state.musicSupport === "unsupported"
+    ? "A exportação de música em MP4 não está disponível neste navegador."
+    : "Sem música (vídeo sem som).";
+}
+
+async function setupMusicEncoder() {
+  try {
+    if (!("AudioEncoder" in window) || !("AudioData" in window) || !(window.AudioContext || window.webkitAudioContext)) {
+      throw new Error("Audio encoding unavailable");
+    }
+    const support = await AudioEncoder.isConfigSupported({
+      codec: "mp4a.40.2", sampleRate: AUDIO_SAMPLE_RATE, numberOfChannels: AUDIO_CHANNELS, bitrate: 128_000,
+    });
+    if (!support.supported) throw new Error("AAC encoding unavailable");
+    state.musicConfig = support.config;
+    state.musicSupport = "ready";
+    state.musicMessage = "Sem música (vídeo sem som).";
+  } catch {
+    state.musicConfig = null;
+    state.musicSupport = "unsupported";
+    state.musicMessage = "A exportação de música em MP4 não está disponível neste navegador.";
+  }
+  syncControls();
+}
+
+async function loadMusic(file) {
+  els.musicInput.value = "";
+  if (!file || state.exporting || state.musicLoading || state.musicSupport !== "ready") return;
+  state.musicLoading = true;
+  state.musicMessage = "A abrir música...";
+  syncControls();
+  let audioContext;
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    audioContext = new AudioContextClass({ sampleRate: AUDIO_SAMPLE_RATE });
+    const buffer = await audioContext.decodeAudioData(await file.arrayBuffer());
+    if (!buffer.length) throw new Error("Empty audio");
+    clearMusic();
+    state.music = { name: file.name, buffer, url: URL.createObjectURL(file) };
+    state.musicMessage = `Música pronta / ${Math.round(buffer.duration)} s`;
+    els.musicPlayer.src = state.music.url;
+    els.musicPlayer.volume = state.musicVolume;
+    els.musicPlayer.hidden = false;
+    invalidateReadyVideo();
+  } catch {
+    state.musicMessage = "Não foi possível abrir esse áudio. Experimente MP3, M4A ou WAV.";
+  } finally {
+    if (audioContext && audioContext.state !== "closed") await audioContext.close().catch(() => {});
+    state.musicLoading = false;
+    syncControls();
+  }
+}
+
+function syncMusicControls(busy) {
+  const hasMusic = Boolean(state.music);
+  els.musicInput.disabled = busy || state.musicSupport !== "ready";
+  els.removeMusic.disabled = !hasMusic || busy;
+  els.musicName.textContent = hasMusic ? shortName(state.music.name, 28) : "Escolher áudio";
+  els.musicStatus.textContent = state.musicMessage;
+  els.musicVolume.value = String(Math.round(state.musicVolume * 100));
+  els.musicVolumeValue.textContent = `${Math.round(state.musicVolume * 100)}%`;
+  els.musicStart.max = String(hasMusic ? Math.max(0, state.music.buffer.duration - 0.1) : 0);
+  els.musicStart.value = String(state.musicStart);
+  els.musicLoop.checked = state.musicLoop;
+  els.musicFade.checked = state.musicFade;
+  [els.musicVolume, els.musicStart, els.musicLoop, els.musicFade].forEach((control) => {
+    control.disabled = !hasMusic || busy;
+  });
+}
+
+function bindMusicEvents() {
+  els.musicInput.addEventListener("change", (event) => loadMusic(event.target.files[0]));
+  els.removeMusic.addEventListener("click", () => {
+    clearMusic();
+    invalidateReadyVideo();
+    syncControls();
+  });
+  els.musicVolume.addEventListener("input", () => {
+    state.musicVolume = Number(els.musicVolume.value) / 100;
+    els.musicPlayer.volume = state.musicVolume;
+    invalidateReadyVideo();
+    syncControls();
+  });
+  els.musicStart.addEventListener("change", () => {
+    const duration = state.music?.buffer.duration ?? 0;
+    const value = els.musicStart.valueAsNumber;
+    state.musicStart = clamp(Number.isFinite(value) ? value : 0, 0, Math.max(0, duration - 0.1));
+    if (Number.isFinite(els.musicPlayer.duration)) els.musicPlayer.currentTime = state.musicStart;
+    invalidateReadyVideo();
+    syncControls();
+  });
+  [els.musicLoop, els.musicFade].forEach((control) => {
+    control.addEventListener("change", () => {
+      state.musicLoop = els.musicLoop.checked;
+      state.musicFade = els.musicFade.checked;
+      invalidateReadyVideo();
+      syncControls();
+    });
+  });
+  els.musicPlayer.addEventListener("loadedmetadata", () => {
+    els.musicPlayer.currentTime = state.musicStart;
+  });
+  els.musicPlayer.addEventListener("ended", () => {
+    if (!state.musicLoop || !state.music) return;
+    els.musicPlayer.currentTime = state.musicStart;
+    els.musicPlayer.play().catch(() => {});
+  });
+  els.videoColourEffect.addEventListener("change", () => {
+    state.videoColourEffect = els.videoColourEffect.value;
+    invalidateReadyVideo();
+    renderOrderPreview();
+  });
+}
+
+function createMusicAudioData(startFrame, numberOfFrames, totalFrames) {
+  const source = state.music.buffer;
+  const samples = new Float32Array(numberOfFrames * AUDIO_CHANNELS);
+  const start = Math.floor(state.musicStart * source.sampleRate);
+  const available = source.length - start;
+  const totalSeconds = totalFrames / AUDIO_SAMPLE_RATE;
+  const end = state.musicLoop ? totalSeconds : Math.min(totalSeconds, available / source.sampleRate);
+  const fadeIn = Math.min(0.6, end / 2);
+  const fadeOut = Math.min(1, end / 2);
+  for (let channel = 0; channel < AUDIO_CHANNELS; channel += 1) {
+    const input = source.getChannelData(Math.min(channel, source.numberOfChannels - 1));
+    for (let index = 0; index < numberOfFrames; index += 1) {
+      const time = (startFrame + index) / AUDIO_SAMPLE_RATE;
+      let position = time * source.sampleRate;
+      if (state.musicLoop) position %= available;
+      if (position >= available) continue;
+      position += start;
+      const left = Math.floor(position);
+      const fraction = position - left;
+      const value = input[left] + (input[Math.min(left + 1, source.length - 1)] - input[left]) * fraction;
+      const fade = state.musicFade ? clamp(Math.min(time / fadeIn, (end - time) / fadeOut), 0, 1) : 1;
+      samples[channel * numberOfFrames + index] = value * state.musicVolume * fade;
+    }
+  }
+  return new AudioData({
+    format: "f32-planar", sampleRate: AUDIO_SAMPLE_RATE, numberOfFrames, numberOfChannels: AUDIO_CHANNELS,
+    timestamp: Math.round(startFrame * 1_000_000 / AUDIO_SAMPLE_RATE), data: samples,
+  });
+}
+
 function normalizeFace(face) {
   const box = face.boundingBox || face;
   return {
@@ -1492,6 +1701,7 @@ function outputFilename(photo, preset) {
 }
 
 function clearReadyDownload() {
+  clearVideoPreview();
   if (state.readyDownload?.url) URL.revokeObjectURL(state.readyDownload.url);
   state.readyDownload = null;
   els.saveReady.disabled = true;
@@ -1588,6 +1798,11 @@ async function saveReadyDownload() {
 function downloadBlob(blob, filename) {
   clearReadyDownload();
   state.readyDownload = { blob, filename, url: null };
+  if (/\.mp4$/i.test(filename)) {
+    state.videoPreviewUrl = URL.createObjectURL(blob);
+    els.videoPlayer.src = state.videoPreviewUrl;
+    els.videoPlayer.hidden = false;
+  }
   els.saveReadyName.textContent = `Guardar ${shortName(filename, 38)}`;
   els.saveReady.disabled = false;
   return Promise.resolve();
@@ -1618,7 +1833,11 @@ async function renderPhotoBlob(photo, preset) {
 
 function videoTotalSeconds(photoCount = state.photos.length) {
   if (!photoCount) return 0;
-  return photoCount * state.videoPhotoDuration + Math.max(0, photoCount - 1) * state.videoTransitionDuration;
+  return photoCount * state.videoPhotoDuration + Math.max(0, photoCount - 1) * videoTransitionSeconds();
+}
+
+function videoTransitionSeconds() {
+  return state.videoTransition === "cut" ? 0 : state.videoTransitionDuration;
 }
 
 function videoFilename() {
@@ -1630,7 +1849,7 @@ async function createVideoSlide(photo, preset) {
   const canvas = document.createElement("canvas");
   try {
     await ensurePhotoImage(photo);
-    drawComposition(canvas, preset, { photo, forceOpaque: true });
+    drawComposition(canvas, preset, { photo, forceOpaque: true, videoEffect: state.videoColourEffect });
     return canvas;
   } finally {
     releasePhotoImage(photo);
@@ -1665,12 +1884,13 @@ function drawScaledVideoSlide(context, slide, scale, alpha) {
 
 async function drawVideoTimeline(context, canvas, time, cache, preset) {
   const count = state.photos.length;
-  const cycle = state.videoPhotoDuration + state.videoTransitionDuration;
+  const transitionSeconds = videoTransitionSeconds();
+  const cycle = state.videoPhotoDuration + transitionSeconds;
   const currentIndex = Math.min(count - 1, Math.floor(time / cycle));
   const localTime = time - currentIndex * cycle;
-  const transitioning = currentIndex < count - 1 && localTime >= state.videoPhotoDuration;
+  const transitioning = transitionSeconds > 0 && currentIndex < count - 1 && localTime >= state.videoPhotoDuration;
   const rawProgress = transitioning
-    ? (localTime - state.videoPhotoDuration) / state.videoTransitionDuration
+    ? (localTime - state.videoPhotoDuration) / transitionSeconds
     : 0;
   const progress = clamp(rawProgress, 0, 1);
   const eased = progress * progress * (3 - 2 * progress);
@@ -1687,6 +1907,25 @@ async function drawVideoTimeline(context, canvas, time, cache, preset) {
   } else if (state.videoTransition === "slide") {
     context.drawImage(current, -canvas.width * eased, 0);
     context.drawImage(next, canvas.width * (1 - eased), 0);
+  } else if (state.videoTransition === "slide-up") {
+    context.drawImage(current, 0, -canvas.height * eased);
+    context.drawImage(next, 0, canvas.height * (1 - eased));
+  } else if (["wipe-left", "wipe-right", "wipe-up", "split"].includes(state.videoTransition)) {
+    context.drawImage(current, 0, 0);
+    context.save();
+    context.beginPath();
+    if (state.videoTransition === "wipe-left") context.rect(canvas.width * (1 - eased), 0, canvas.width * eased, canvas.height);
+    else if (state.videoTransition === "wipe-right") context.rect(0, 0, canvas.width * eased, canvas.height);
+    else if (state.videoTransition === "wipe-up") context.rect(0, canvas.height * (1 - eased), canvas.width, canvas.height * eased);
+    else context.rect(canvas.width * (1 - eased) / 2, 0, canvas.width * eased, canvas.height);
+    context.clip();
+    context.drawImage(next, 0, 0);
+    context.restore();
+  } else if (state.videoTransition === "black") {
+    context.drawImage(eased < 0.5 ? current : next, 0, 0);
+    context.globalAlpha = eased < 0.5 ? eased * 2 : (1 - eased) * 2;
+    context.fillStyle = "#000000";
+    context.fillRect(0, 0, canvas.width, canvas.height);
   } else if (state.videoTransition === "zoom") {
     drawScaledVideoSlide(context, current, 1 + eased * 0.06, 1);
     drawScaledVideoSlide(context, next, 1.06 - eased * 0.06, eased);
@@ -1702,7 +1941,7 @@ async function drawVideoTimeline(context, canvas, time, cache, preset) {
 }
 
 async function waitForVideoEncoder(encoder) {
-  while (encoder.encodeQueueSize > 6) {
+  while (encoder.state === "configured" && encoder.encodeQueueSize > 6) {
     await new Promise((resolve) => encoder.addEventListener("dequeue", resolve, { once: true }));
   }
 }
@@ -1718,28 +1957,44 @@ async function encodeMp4() {
   const totalSeconds = videoTotalSeconds();
   const totalFrames = Math.max(1, Math.ceil(totalSeconds * VIDEO_FPS));
   const frameDuration = Math.round(1_000_000 / VIDEO_FPS);
+  const music = state.music;
+  const totalAudioFrames = music ? Math.round(totalFrames * AUDIO_SAMPLE_RATE / VIDEO_FPS) : 0;
+  const fastStart = { expectedVideoChunks: totalFrames };
+  if (music) fastStart.expectedAudioChunks = Math.ceil(totalAudioFrames / 1024) + 8;
   const target = new Mp4Muxer.ArrayBufferTarget();
   const muxer = new Mp4Muxer.Muxer({
     target,
     video: { codec: "avc", width: preset.width, height: preset.height, frameRate: VIDEO_FPS },
-    fastStart: { expectedVideoChunks: totalFrames },
+    ...(music ? { audio: { codec: "aac", numberOfChannels: AUDIO_CHANNELS, sampleRate: AUDIO_SAMPLE_RATE } } : {}),
+    fastStart,
   });
   let encoderError = null;
   const encoder = new VideoEncoder({
-    output: (chunk, metadata) => muxer.addVideoChunk(chunk, metadata),
+    output: (chunk, metadata) => {
+      try { muxer.addVideoChunk(chunk, metadata); }
+      catch (error) { encoderError = error; }
+    },
     error: (error) => {
       encoderError = error;
     },
   });
+  const audioEncoder = music ? new AudioEncoder({
+    output: (chunk, metadata) => {
+      try { muxer.addAudioChunk(chunk, metadata); }
+      catch (error) { encoderError = error; }
+    },
+    error: (error) => { encoderError = error; },
+  }) : null;
+  let audioFrame = 0;
   const canvas = document.createElement("canvas");
   canvas.width = preset.width;
   canvas.height = preset.height;
   const context = canvas.getContext("2d", { alpha: false });
   const cache = new Map();
 
-  encoder.configure(state.videoConfig);
-
   try {
+    encoder.configure(state.videoConfig);
+    if (audioEncoder) audioEncoder.configure(state.musicConfig);
     for (let frameIndex = 0; frameIndex < totalFrames; frameIndex += 1) {
       if (state.videoCancelRequested) throw cancelledVideoError();
       if (encoderError) throw encoderError;
@@ -1750,8 +2005,21 @@ async function encodeMp4() {
         timestamp: Math.round((frameIndex * 1_000_000) / VIDEO_FPS),
         duration: frameDuration,
       });
-      encoder.encode(frame, { keyFrame: frameIndex % (VIDEO_FPS * 2) === 0 });
-      frame.close();
+      try { encoder.encode(frame, { keyFrame: frameIndex % (VIDEO_FPS * 2) === 0 }); }
+      finally { frame.close(); }
+      if (audioEncoder) {
+        const audioTarget = Math.min(totalAudioFrames, Math.round((frameIndex + 1) * AUDIO_SAMPLE_RATE / VIDEO_FPS));
+        while (audioFrame < audioTarget) {
+          if (state.videoCancelRequested) throw cancelledVideoError();
+          const count = Math.min(1024, totalAudioFrames - audioFrame);
+          const data = createMusicAudioData(audioFrame, count, totalAudioFrames);
+          try { audioEncoder.encode(data); }
+          finally { data.close(); }
+          audioFrame += count;
+          await waitForVideoEncoder(audioEncoder);
+          if (encoderError) throw encoderError;
+        }
+      }
       await waitForVideoEncoder(encoder);
 
       if (frameIndex % 10 === 0 || frameIndex === totalFrames - 1) {
@@ -1768,12 +2036,15 @@ async function encodeMp4() {
 
     setVideoStatus("A finalizar MP4...");
     await encoder.flush();
+    if (audioEncoder) await audioEncoder.flush();
     if (encoderError) throw encoderError;
     encoder.close();
+    if (audioEncoder && audioEncoder.state !== "closed") audioEncoder.close();
     muxer.finalize();
     return new Blob([target.buffer], { type: "video/mp4" });
   } catch (error) {
     if (encoder.state !== "closed") encoder.close();
+    if (audioEncoder && audioEncoder.state !== "closed") audioEncoder.close();
     throw error;
   } finally {
     trimVideoSlideCache(cache, []);
@@ -1784,6 +2055,10 @@ async function encodeMp4() {
 
 async function exportVideo() {
   const format = videoFormat();
+  if (state.music && (state.musicSupport !== "ready" || !state.musicConfig)) {
+    setVideoStatus("A exportação de música em MP4 não está disponível neste navegador.");
+    return;
+  }
   if (!state.photos.length) {
     setVideoStatus("Adicione fotografias antes de exportar um vídeo.");
     return;
@@ -2097,6 +2372,7 @@ function createZipBlob(entries) {
 }
 
 function resetAll() {
+  clearMusic();
   clearPhotos();
   clearReadyDownload();
   if (state.logo?.url) URL.revokeObjectURL(state.logo.url);
@@ -2120,6 +2396,11 @@ function resetAll() {
     jpegQuality: 0.92,
     videoPresetId: DEFAULT_VIDEO_PRESET_ID,
     videoTransition: "fade",
+    videoColourEffect: "none",
+    musicVolume: 0.7,
+    musicStart: 0,
+    musicLoop: true,
+    musicFade: true,
     videoPhotoDuration: 2,
     videoTransitionDuration: 0.6,
     videoExporting: false,
@@ -2136,6 +2417,7 @@ function resetAll() {
 }
 
 function bindEvents() {
+  bindMusicEvents();
   bindPhotoOrderEvents();
   els.photoInput.addEventListener("change", (event) => loadPhotoBatch(event.target.files));
   els.logoInput.addEventListener("change", (event) => loadLogo(event.target.files[0]));
@@ -2305,16 +2587,19 @@ function bindEvents() {
 
   els.videoTransition.addEventListener("change", () => {
     state.videoTransition = els.videoTransition.value;
+    invalidateReadyVideo();
     syncControls();
   });
 
   els.videoPhotoDuration.addEventListener("change", () => {
     state.videoPhotoDuration = Number(els.videoPhotoDuration.value);
+    invalidateReadyVideo();
     syncControls();
   });
 
   els.videoTransitionDuration.addEventListener("change", () => {
     state.videoTransitionDuration = Number(els.videoTransitionDuration.value);
+    invalidateReadyVideo();
     syncControls();
   });
 
@@ -2355,5 +2640,6 @@ syncControls();
 renderPreview();
 setupFaceDetector();
 setupVideoEncoder();
+setupMusicEncoder();
 loadFrameAssets();
 setupFolderExport();

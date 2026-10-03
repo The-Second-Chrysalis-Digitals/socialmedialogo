@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="../icons/app-icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="../icons/app-icon-180.png">
-    <link rel="stylesheet" href="../styles.css?v=20261003-photo-order">
+    <link rel="stylesheet" href="../styles.css?v=20261003-music-effects">
   </head>
   <body>
     <svg class="sprite" aria-hidden="true">
@@ -366,6 +366,13 @@
                     <option value="fade">Dissolver</option>
                     <option value="slide">Deslizar</option>
                     <option value="zoom">Zoom e dissolver</option>
+                    <option value="slide-up">Deslizar para cima</option>
+                    <option value="wipe-left">Revelar para a esquerda</option>
+                    <option value="wipe-right">Revelar para a direita</option>
+                    <option value="wipe-up">Revelar para cima</option>
+                    <option value="split">Revelação dividida</option>
+                    <option value="black">Passar por preto</option>
+                    <option value="cut">Corte direto</option>
                   </select>
                 </label>
                 <label>
@@ -386,6 +393,42 @@
                   </select>
                 </label>
               </div>
+              <label class="video-colour-field">
+                <span>Efeito de cor</span>
+                <select id="videoColourEffect">
+                  <option value="none">Original</option>
+                  <option value="mono">Preto e branco</option>
+                  <option value="warm">Quente</option>
+                  <option value="cool">Frio</option>
+                  <option value="vivid">Vivo</option>
+                </select>
+              </label>
+              <div class="video-music">
+                <div class="video-music-upload">
+                  <label class="file-pick" for="musicInput">
+                    <svg><use href="#icon-file"></use></svg>
+                    <span>Música</span>
+                    <small id="musicName">Escolher áudio</small>
+                  </label>
+                  <button class="icon-button" id="removeMusic" type="button" title="Remover música" aria-label="Remover música" disabled>
+                    <svg><use href="#icon-x"></use></svg>
+                  </button>
+                </div>
+                <input id="musicInput" type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac">
+                <audio id="musicPlayer" controls preload="metadata" hidden></audio>
+                <label class="range-field">
+                  <span>Volume</span>
+                  <input id="musicVolume" type="range" min="0" max="100" step="1" value="70" disabled>
+                  <output id="musicVolumeValue">70%</output>
+                </label>
+                <label class="video-music-start">
+                  <span>Começar em (s)</span>
+                  <input id="musicStart" type="number" min="0" step="0.1" value="0" disabled>
+                </label>
+                <label class="check-field"><input id="musicLoop" type="checkbox" checked disabled><span>Repetir música</span></label>
+                <label class="check-field"><input id="musicFade" type="checkbox" checked disabled><span>Entrada e saída suaves</span></label>
+                <div class="mini-status" id="musicStatus">A verificar suporte para música...</div>
+              </div>
               <button class="secondary-button" data-open-photo-order data-order-preview-mode="video" type="button" disabled>
                 <svg><use href="#icon-image"></use></svg>
                 Ver e ordenar fotografias do vídeo
@@ -400,6 +443,7 @@
               </button>
               <progress id="videoProgress" max="100" value="0" hidden></progress>
               <div class="mini-status" id="videoStatus">A verificar suporte para MP4...</div>
+              <video id="videoPlayer" controls playsinline preload="metadata" hidden></video>
             </div>
           </section>
         </aside>
@@ -439,6 +483,6 @@
       </div>
       <footer class="photo-order-footer"><button class="primary-button" id="donePhotoOrder" type="button">Concluir</button></footer>
     </dialog>
-    <script src="app.js?v=20261003-photo-order"></script>
+    <script src="app.js?v=20261003-music-effects"></script>
   </body>
 </html>

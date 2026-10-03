@@ -51,7 +51,11 @@ The save button is always visible at the top of the `Export` panel. It shows wha
 
 Large ZIP downloads can take a few moments to finish copying. Wait until the browser's download indicator shows that the ZIP is complete before opening or extracting it.
 
-The MP4 exporter creates a silent slideshow from the full photo batch in 4:5 (1080 x 1350), 9:16 (1080 x 1920), or landscape 16:9 (1920 x 1080). Each option uses its matching APCM frame and applies the same face-safe crop and transitions as the photo exporter. MP4 encoding runs locally in current Chrome and Edge browsers. The Save button writes the finished MP4 directly to a new folder under `EXPORTS`, avoiding unreliable browser downloads.
+The MP4 exporter creates a slideshow from the full photo batch in 4:5 (1080 x 1350), 9:16 (1080 x 1920), or landscape 16:9 (1920 x 1080). Each option uses its matching APCM frame and face-safe crop. MP4 encoding runs locally in compatible browsers. The Save button writes the finished MP4 into `EXPORTS` when the offline launcher is running, or downloads it on the public website.
+
+Video transitions include dissolve, horizontal and vertical slide, zoom, three directional wipes, split reveal, fade through black, and a direct cut. Colour effects include black and white, warm, cool, and vivid; they affect the photos without changing the logo or frame colours.
+
+Choose a local audio file in `Music` to include it in the MP4. Adjust the volume and start time, repeat shorter music with `Loop music`, and use `Fade in / out` for a softer beginning and ending. The finished video can be played with sound before saving. Audio is processed locally and encoded as AAC; browsers without AAC encoding can still export silent videos.
 
 ## APCM Frames
 

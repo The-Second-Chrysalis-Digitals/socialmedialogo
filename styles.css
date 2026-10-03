@@ -1071,6 +1071,64 @@ input[type="color"] {
   }
 }
 
+.video-colour-field,
+.video-music-start {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(90px, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.video-music {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.video-music-upload {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+}
+
+.video-music-upload .file-pick {
+  min-width: 0;
+}
+
+.video-music-start input {
+  min-width: 0;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+#musicPlayer,
+#videoPlayer {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+}
+
+#musicPlayer {
+  height: 42px;
+}
+
+#videoPlayer {
+  max-height: 360px;
+  background: #17191a;
+}
+
+#musicPlayer[hidden],
+#videoPlayer[hidden] {
+  display: none;
+}
+
 @media (max-width: 1180px) {
   .workspace {
     grid-template-columns: minmax(250px, 300px) minmax(340px, 1fr);

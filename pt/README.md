@@ -8,6 +8,12 @@ Use `Adicionar fotos` várias vezes para juntar fotografias ao mesmo lote, até 
 
 Abra `Ver e ordenar` na área Lote ou Exportar para ver todas as fotografias. Selecione uma miniatura para pré-visualizar a imagem ou o vídeo com a moldura e o logótipo. No computador, pode arrastar as miniaturas. Também pode usar as setas ou indicar uma posição e premir o botão de mover. A numeração dos ficheiros e a sequência do vídeo seguem esta ordem. As novas fotografias são acrescentadas ao fim da sequência atual.
 
+## Música e efeitos de vídeo
+
+Na área de exportação de vídeo, escolha um ficheiro de áudio em `Música` para o incluir no MP4. Pode ajustar o volume e o ponto de início, repetir a música e ativar a entrada e saída suaves. O vídeo concluído pode ser reproduzido com som antes de guardar. O áudio é processado localmente; nos navegadores sem suporte para codificação AAC, pode continuar a exportar vídeos sem música.
+
+As transições incluem dissolver, deslizar na horizontal e na vertical, zoom, revelações direcionais, revelação dividida, passagem por preto e corte direto. Os efeitos de cor incluem preto e branco, quente, frio e vivo, sem alterar as cores do logótipo e da moldura.
+
 ## Telemóvel e tablet
 
 A aplicação pública funciona no navegador do telemóvel e pode ser instalada no ecrã principal. Em navegadores Android compatíveis, use o botão de instalação quando este aparecer. No iPhone ou iPad, use a opção Adicionar ao ecrã principal do Safari. Depois da primeira visita concluída, o editor, as molduras APCM, a deteção facial e as ferramentas de exportação ficam disponíveis offline.
