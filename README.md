@@ -4,6 +4,8 @@ A small local browser app for uploading up to 150 photos, applying a logo, and e
 
 Use `Add photos` as many times as needed to build a batch of up to 150 photos. New uploads are added after the existing photos; their edits, face scans, logo, and current selection remain unchanged. Only new photos are scanned automatically. The reset button clears the batch and starts over.
 
+Open `Review & order` from the Batch or Export controls to see the whole batch. Select a thumbnail to preview its image or video output, including the frame and logo. Drag thumbnails on desktop, use the earlier/later arrows, or enter a position and press the move button. Image filenames and slideshow playback follow this order. Adding more photos appends them to the current sequence.
+
 Public app: `https://the-second-chrysalis-digitals.github.io/socialmedialogo/`.
 
 European Portuguese edition (`pt-PT`): open `http://127.0.0.1:8765/pt/` locally or visit `https://the-second-chrysalis-digitals.github.io/socialmedialogo/pt/`. The Portuguese edition is attributed to Susana Quintal.

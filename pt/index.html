@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="../icons/app-icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="../icons/app-icon-180.png">
-    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../styles.css?v=20261003-photo-order">
   </head>
   <body>
     <svg class="sprite" aria-hidden="true">
@@ -117,6 +117,10 @@
               <span id="faceSummary">Deteção facial em espera</span>
             </div>
             <div class="photo-list" id="photoList" aria-label="Fotografias selecionadas"></div>
+            <button class="secondary-button" data-open-photo-order type="button" disabled>
+              <svg><use href="#icon-image"></use></svg>
+              Ver e ordenar
+            </button>
           </section>
 
           <section class="control-group">
@@ -296,6 +300,10 @@
               <svg><use href="#icon-download"></use></svg>
               Transferir formato selecionado
             </button>
+            <button class="secondary-button" data-open-photo-order type="button" disabled>
+              <svg><use href="#icon-image"></use></svg>
+              Ver e ordenar
+            </button>
             <div class="folder-export">
               <div class="folder-export-title">
                 <svg><use href="#icon-folder"></use></svg>
@@ -378,6 +386,10 @@
                   </select>
                 </label>
               </div>
+              <button class="secondary-button" data-open-photo-order data-order-preview-mode="video" type="button" disabled>
+                <svg><use href="#icon-image"></use></svg>
+                Ver e ordenar fotografias do vídeo
+              </button>
               <button class="primary-button" id="exportVideo" type="button" disabled>
                 <svg><use href="#icon-video"></use></svg>
                 <span id="videoExportButtonText">Exportar MP4 4:5</span>
@@ -398,6 +410,35 @@
     <script src="../vendor/tracking/data/face-min.js"></script>
     <script src="../vendor/mp4-muxer/mp4-muxer.js"></script>
     <script src="../pwa.js"></script>
-    <script src="app.js?v=20261003-add-photos"></script>
+    <dialog id="photoOrderDialog" class="photo-order-dialog" aria-labelledby="photoOrderTitle">
+      <header class="photo-order-header">
+        <div><h2 id="photoOrderTitle">Ver e ordenar fotografias</h2><span id="photoOrderCount"></span></div>
+        <button class="icon-button" id="closePhotoOrder" type="button" title="Fechar" aria-label="Fechar">
+          <svg><use href="#icon-x"></use></svg>
+        </button>
+      </header>
+      <div class="photo-order-layout">
+        <ol id="photoOrderGrid" class="photo-order-grid" aria-label="Ordem das fotografias"></ol>
+        <section class="photo-order-preview" aria-label="Pré-visualização da fotografia selecionada">
+          <div class="segmented" role="group" aria-label="Formato da pré-visualização">
+            <button class="segment" data-order-preview="photo" type="button" aria-pressed="true">Fotografia</button>
+            <button class="segment" data-order-preview="video" type="button" aria-pressed="false">Vídeo</button>
+          </div>
+          <div class="photo-order-preview-surface"><canvas id="photoOrderCanvas" aria-label="Pré-visualização da exportação"></canvas></div>
+          <div class="photo-order-selection"><strong id="photoOrderName"></strong><span id="photoOrderSize"></span></div>
+          <div class="photo-order-move">
+            <button class="icon-button" id="movePhotoEarlier" type="button" title="Mover para antes" aria-label="Mover para antes">&#8592;</button>
+            <button class="icon-button" id="movePhotoLater" type="button" title="Mover para depois" aria-label="Mover para depois">&#8594;</button>
+            <label for="photoOrderPosition">Posição</label>
+            <input id="photoOrderPosition" type="number" min="1" max="150" step="1" value="1" required>
+            <button class="icon-button" id="movePhotoToPosition" type="button" title="Mover para a posição" aria-label="Mover para a posição">
+              <svg><use href="#icon-move"></use></svg>
+            </button>
+          </div>
+        </section>
+      </div>
+      <footer class="photo-order-footer"><button class="primary-button" id="donePhotoOrder" type="button">Concluir</button></footer>
+    </dialog>
+    <script src="app.js?v=20261003-photo-order"></script>
   </body>
 </html>

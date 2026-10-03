@@ -6,6 +6,8 @@ Criado por Susana Quintal.
 
 Use `Adicionar fotos` várias vezes para juntar fotografias ao mesmo lote, até ao limite total de 150. As fotografias anteriores, as suas edições, o logótipo e a seleção atual são mantidos. A deteção facial automática analisa apenas as novas fotografias. O botão de reposição limpa o lote para começar de novo.
 
+Abra `Ver e ordenar` na área Lote ou Exportar para ver todas as fotografias. Selecione uma miniatura para pré-visualizar a imagem ou o vídeo com a moldura e o logótipo. No computador, pode arrastar as miniaturas. Também pode usar as setas ou indicar uma posição e premir o botão de mover. A numeração dos ficheiros e a sequência do vídeo seguem esta ordem. As novas fotografias são acrescentadas ao fim da sequência atual.
+
 ## Telemóvel e tablet
 
 A aplicação pública funciona no navegador do telemóvel e pode ser instalada no ecrã principal. Em navegadores Android compatíveis, use o botão de instalação quando este aparecer. No iPhone ou iPad, use a opção Adicionar ao ecrã principal do Safari. Depois da primeira visita concluída, o editor, as molduras APCM, a deteção facial e as ferramentas de exportação ficam disponíveis offline.

@@ -1,4 +1,4 @@
-const CACHE_NAME = "social-photo-exporter-add-photos-v3";
+const CACHE_NAME = "social-photo-exporter-photo-order-v4";
 const CORE_ASSETS = [
   "./",
   "index.html",

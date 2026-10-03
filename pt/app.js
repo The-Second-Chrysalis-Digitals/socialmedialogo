@@ -34,6 +34,7 @@ const state = {
   activeLayer: "photo",
   photos: [],
   activePhotoId: null,
+  orderPreviewMode: "photo",
   logo: null,
   frameEnabled: true,
   frames: {},
@@ -80,6 +81,20 @@ const els = {
   frameEnabled: document.querySelector("#frameEnabled"),
   frameStatus: document.querySelector("#frameStatus"),
   photoList: document.querySelector("#photoList"),
+  openPhotoOrderButtons: Array.from(document.querySelectorAll("[data-open-photo-order]")),
+  photoOrderDialog: document.querySelector("#photoOrderDialog"),
+  photoOrderGrid: document.querySelector("#photoOrderGrid"),
+  photoOrderCanvas: document.querySelector("#photoOrderCanvas"),
+  photoOrderCount: document.querySelector("#photoOrderCount"),
+  photoOrderName: document.querySelector("#photoOrderName"),
+  photoOrderSize: document.querySelector("#photoOrderSize"),
+  photoOrderPosition: document.querySelector("#photoOrderPosition"),
+  movePhotoEarlier: document.querySelector("#movePhotoEarlier"),
+  movePhotoLater: document.querySelector("#movePhotoLater"),
+  movePhotoToPosition: document.querySelector("#movePhotoToPosition"),
+  closePhotoOrder: document.querySelector("#closePhotoOrder"),
+  donePhotoOrder: document.querySelector("#donePhotoOrder"),
+  orderPreviewButtons: Array.from(document.querySelectorAll("[data-order-preview]")),
   batchCount: document.querySelector("#batchCount"),
   faceSummary: document.querySelector("#faceSummary"),
   faceStatus: document.querySelector("#faceStatus"),
@@ -136,6 +151,7 @@ const els = {
 };
 
 let drag = null;
+let photoOrderDragId = null;
 let photoIdSeed = 0;
 let crcTable = null;
 let videoConfigRequestId = 0;
@@ -293,15 +309,17 @@ function clearPhotos() {
 }
 
 function createPhotoThumbnail(image) {
-  const size = 96;
+  const size = 320;
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  const scale = Math.min(1, size / Math.max(sourceWidth, sourceHeight));
   const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+  canvas.height = Math.max(1, Math.round(sourceHeight * scale));
   const context = canvas.getContext("2d", { alpha: false });
   context.fillStyle = "#f2eee5";
-  context.fillRect(0, 0, size, size);
-  const placement = fitRect(image.naturalWidth || image.width, image.naturalHeight || image.height, size, size, "cover");
-  context.drawImage(image, (size - placement.width) / 2, (size - placement.height) / 2, placement.width, placement.height);
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
   const thumbnail = canvas.toDataURL("image/jpeg", 0.76);
   canvas.width = 0;
   canvas.height = 0;
@@ -512,27 +530,208 @@ function renderPhotoList() {
     pill.textContent = faceLabel(photo);
 
     button.append(thumb, main, pill);
-    button.addEventListener("click", async () => {
-      const previous = activePhoto();
-      state.activePhotoId = photo.id;
-      renderPhotoList();
-      syncControls();
-      try {
-        await ensurePhotoImage(photo);
-        if (state.activePhotoId !== photo.id) {
-          releasePhotoImage(photo);
-          return;
-        }
-        releasePhotoImage(previous);
-        renderPreview();
-      } catch (error) {
-        setStatus(error.message || "Não foi possível reabrir essa fotografia.");
-      }
-    });
+    button.addEventListener("click", () => selectPhoto(photo.id));
     fragment.append(button);
   });
 
   els.photoList.append(fragment);
+}
+
+async function selectPhoto(photoId) {
+  const photo = state.photos.find((item) => item.id === photoId);
+  if (!photo || state.exporting) return;
+  const previous = activePhoto();
+  state.activePhotoId = photo.id;
+  syncControls();
+  try {
+    await ensurePhotoImage(photo);
+    if (state.activePhotoId !== photo.id) {
+      releasePhotoImage(photo);
+      return;
+    }
+    releasePhotoImage(previous);
+    renderPreview();
+    renderOrderPreview();
+  } catch (error) {
+    setStatus(error.message || "Não foi possível reabrir essa fotografia.");
+  }
+}
+
+function movePhotoTo(photoId, position) {
+  if (state.exporting || state.scanInProgress || state.loadingPhotos || !Number.isInteger(position)) return;
+  const from = state.photos.findIndex((photo) => photo.id === photoId);
+  if (from < 0) return;
+  const to = clamp(position, 0, state.photos.length - 1);
+  if (from === to) return;
+  const [photo] = state.photos.splice(from, 1);
+  state.photos.splice(to, 0, photo);
+  state.photos.forEach((item, index) => { item.index = index; });
+  clearReadyDownload();
+  syncControls();
+  renderPreview();
+  setStatus(`Fotografia movida para a posição ${to + 1}/${state.photos.length}.`);
+  if (state.activePhotoId === photoId) {
+    els.photoOrderGrid.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: "nearest" });
+  }
+}
+
+function renderOrderPreview() {
+  if (!els.photoOrderDialog.open) return;
+  const photo = activePhoto();
+  const preset = state.orderPreviewMode === "video" ? videoPreset() : activePreset();
+  const index = state.photos.findIndex((item) => item.id === photo?.id);
+  els.photoOrderName.textContent = photo ? `${index + 1}/${state.photos.length} ${photo.name}` : "";
+  els.photoOrderSize.textContent = `${preset.name} / ${preset.width} x ${preset.height}`;
+  els.photoOrderPosition.max = String(state.photos.length);
+  els.photoOrderPosition.value = String(index + 1);
+  const busy = state.exporting || state.scanInProgress || state.loadingPhotos;
+  els.movePhotoEarlier.disabled = busy || index <= 0;
+  els.movePhotoLater.disabled = busy || index >= state.photos.length - 1;
+  els.movePhotoToPosition.disabled = busy || !photo;
+  els.photoOrderPosition.disabled = busy || !photo;
+  els.orderPreviewButtons.forEach((button) => {
+    const active = button.dataset.orderPreview === state.orderPreviewMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  if (photo?.image?.naturalWidth) {
+    drawComposition(els.photoOrderCanvas, preset, { photo, forceOpaque: state.orderPreviewMode === "video" });
+  } else {
+    els.photoOrderCanvas.width = 1;
+    els.photoOrderCanvas.height = 1;
+  }
+}
+
+function syncPhotoOrder() {
+  if (!els.photoOrderDialog.open) return;
+  const scrollTop = els.photoOrderGrid.scrollTop;
+  const focusedPhotoId = document.activeElement?.closest("[data-photo-id]")?.dataset.photoId;
+  const busy = state.exporting || state.scanInProgress || state.loadingPhotos;
+  const fragment = document.createDocumentFragment();
+  state.photos.forEach((photo, index) => {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    button.className = "photo-order-card";
+    button.dataset.photoId = photo.id;
+    button.type = "button";
+    button.draggable = !busy;
+    button.disabled = busy;
+    button.title = photo.name;
+    button.setAttribute("aria-label", `${index + 1}. ${photo.name}`);
+    button.setAttribute("aria-pressed", String(photo.id === state.activePhotoId));
+    button.classList.toggle("active", photo.id === state.activePhotoId);
+    const image = document.createElement("img");
+    image.src = photo.thumbnail;
+    image.alt = "";
+    image.loading = "lazy";
+    image.decoding = "async";
+    const caption = document.createElement("span");
+    caption.className = "photo-order-caption";
+    const number = document.createElement("strong");
+    number.textContent = String(index + 1).padStart(3, "0");
+    const name = document.createElement("span");
+    name.textContent = photo.name;
+    caption.append(number, name);
+    button.append(image, caption);
+    item.append(button);
+    fragment.append(item);
+  });
+  els.photoOrderGrid.replaceChildren(fragment);
+  els.photoOrderGrid.scrollTop = scrollTop;
+  if (focusedPhotoId) {
+    Array.from(els.photoOrderGrid.querySelectorAll("[data-photo-id]"))
+      .find((button) => button.dataset.photoId === focusedPhotoId)?.focus({ preventScroll: true });
+  }
+  els.photoOrderCount.textContent = plural(state.photos.length, "photo");
+  renderOrderPreview();
+}
+
+async function openPhotoOrder(event) {
+  if (!state.photos.length || state.exporting || state.scanInProgress || state.loadingPhotos) return;
+  state.orderPreviewMode = event?.currentTarget?.dataset.orderPreviewMode === "video" ? "video" : "photo";
+  els.photoOrderDialog.showModal();
+  syncPhotoOrder();
+  await selectPhoto(activePhoto().id);
+}
+
+function bindPhotoOrderEvents() {
+  els.openPhotoOrderButtons.forEach((button) => button.addEventListener("click", openPhotoOrder));
+  [els.closePhotoOrder, els.donePhotoOrder].forEach((button) => {
+    button.addEventListener("click", () => els.photoOrderDialog.close());
+  });
+  els.photoOrderGrid.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-photo-id]");
+    if (button) selectPhoto(button.dataset.photoId);
+  });
+  els.movePhotoEarlier.addEventListener("click", () => {
+    const index = state.photos.findIndex((photo) => photo.id === state.activePhotoId);
+    movePhotoTo(state.activePhotoId, index - 1);
+  });
+  els.movePhotoLater.addEventListener("click", () => {
+    const index = state.photos.findIndex((photo) => photo.id === state.activePhotoId);
+    movePhotoTo(state.activePhotoId, index + 1);
+  });
+  const moveToPosition = () => {
+    if (!els.photoOrderPosition.checkValidity()) {
+      els.photoOrderPosition.reportValidity();
+      return;
+    }
+    movePhotoTo(state.activePhotoId, els.photoOrderPosition.valueAsNumber - 1);
+  };
+  els.movePhotoToPosition.addEventListener("click", moveToPosition);
+  els.photoOrderPosition.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    moveToPosition();
+  });
+  els.orderPreviewButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.orderPreviewMode = button.dataset.orderPreview;
+      renderOrderPreview();
+    });
+  });
+  els.photoOrderGrid.addEventListener("dragstart", (event) => {
+    const button = event.target.closest("[data-photo-id]");
+    if (!button || state.exporting || state.scanInProgress || state.loadingPhotos) {
+      event.preventDefault();
+      return;
+    }
+    photoOrderDragId = button.dataset.photoId;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", photoOrderDragId);
+    button.classList.add("dragging");
+  });
+  els.photoOrderGrid.addEventListener("dragover", (event) => {
+    const button = event.target.closest("[data-photo-id]");
+    if (!button || !photoOrderDragId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    els.photoOrderGrid.querySelectorAll(".drop-target").forEach((item) => item.classList.remove("drop-target"));
+    button.classList.add("drop-target");
+  });
+  els.photoOrderGrid.addEventListener("drop", (event) => {
+    const button = event.target.closest("[data-photo-id]");
+    if (!button || !photoOrderDragId) return;
+    event.preventDefault();
+    const index = state.photos.findIndex((photo) => photo.id === button.dataset.photoId);
+    const photoId = photoOrderDragId;
+    photoOrderDragId = null;
+    movePhotoTo(photoId, index);
+    clearPhotoOrderDrag();
+  });
+  els.photoOrderGrid.addEventListener("dragend", clearPhotoOrderDrag);
+  els.photoOrderDialog.addEventListener("close", () => {
+    clearPhotoOrderDrag();
+    els.photoOrderCanvas.width = 1;
+    els.photoOrderCanvas.height = 1;
+  });
+}
+
+function clearPhotoOrderDrag() {
+  photoOrderDragId = null;
+  els.photoOrderGrid.querySelectorAll(".dragging, .drop-target").forEach((item) => {
+    item.classList.remove("dragging", "drop-target");
+  });
 }
 
 function faceLabel(photo) {
@@ -573,6 +772,7 @@ function syncControls() {
   els.frameEnabled.checked = state.frameEnabled;
   els.frameEnabled.disabled = state.frameStatus === "loading" || state.exporting;
   els.photoInput.disabled = busy;
+  els.openPhotoOrderButtons.forEach((button) => { button.disabled = !hasBatch || busy; });
   els.resetAll.disabled = busy;
   els.logoInput.disabled = state.exporting;
 
@@ -639,7 +839,7 @@ function syncControls() {
     button.classList.toggle("active", button.dataset.preset === state.presetId);
   });
 
-  document.querySelectorAll(".segment").forEach((button) => {
+  document.querySelectorAll(".segment[data-fit]").forEach((button) => {
     button.classList.toggle("active", button.dataset.fit === state.fit);
     button.disabled = Boolean(photo?.blurBackground) || state.exporting;
   });
@@ -683,6 +883,7 @@ function syncControls() {
 
   syncAnchorButtons();
   renderPhotoList();
+  syncPhotoOrder();
 }
 
 function syncAnchorButtons() {
@@ -1935,6 +2136,7 @@ function resetAll() {
 }
 
 function bindEvents() {
+  bindPhotoOrderEvents();
   els.photoInput.addEventListener("change", (event) => loadPhotoBatch(event.target.files));
   els.logoInput.addEventListener("change", (event) => loadLogo(event.target.files[0]));
 
@@ -1960,7 +2162,7 @@ function bindEvents() {
     renderPreview();
   });
 
-  document.querySelectorAll(".segment").forEach((button) => {
+  document.querySelectorAll(".segment[data-fit]").forEach((button) => {
     button.addEventListener("click", () => {
       state.fit = button.dataset.fit;
       syncControls();
