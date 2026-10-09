@@ -1,4 +1,4 @@
-const CACHE_NAME = "social-photo-exporter-settings-icon-v6";
+const CACHE_NAME = "social-photo-exporter-library-v7";
 const CORE_ASSETS = [
   "./",
   "index.html",
@@ -6,6 +6,7 @@ const CORE_ASSETS = [
   "app.js",
   "pwa.js",
   "settings.js",
+  "library.js",
   "manifest.webmanifest",
   "pt/",
   "pt/index.html",

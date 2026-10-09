@@ -68,6 +68,8 @@
     if (videoChanged) setupVideoEncoder();
   }
 
+  window.exporterSettings = { capture, validate, apply: value => apply(validate(value)) };
+
   const dialog = document.createElement("dialog");
   dialog.id = "settingsDialog";
   dialog.className = "settings-dialog";

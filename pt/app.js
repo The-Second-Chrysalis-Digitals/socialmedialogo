@@ -485,7 +485,7 @@ function loadLogo(file) {
 
   image.onload = () => {
     if (state.logo?.url) URL.revokeObjectURL(state.logo.url);
-    state.logo = { image, url, name: file.name };
+    state.logo = { image, url, name: file.name, file };
     state.activeLayer = "logo";
     els.logoName.textContent = fileLabel(file);
     setStatus("Logótipo carregado.");
@@ -1494,7 +1494,7 @@ async function loadMusic(file) {
     const buffer = await audioContext.decodeAudioData(await file.arrayBuffer());
     if (!buffer.length) throw new Error("Empty audio");
     clearMusic();
-    state.music = { name: file.name, buffer, url: URL.createObjectURL(file) };
+    state.music = { name: file.name, buffer, url: URL.createObjectURL(file), file };
     state.musicMessage = `Música pronta / ${Math.round(buffer.duration)} s`;
     els.musicPlayer.src = state.music.url;
     els.musicPlayer.volume = state.musicVolume;
