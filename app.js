@@ -930,7 +930,12 @@ function syncAnchorButtons() {
 
 function renderPreview() {
   drawComposition(els.canvas, activePreset(), { preview: true, photo: activePhoto() });
+  if (matchMedia("(max-width: 820px)").matches) {
+    drawComposition(document.querySelector("#uploadPreviewCanvas"), activePreset(), { preview: true, photo: activePhoto() });
+  }
 }
+
+window.addEventListener("resize", () => requestAnimationFrame(renderPreview));
 
 function drawComposition(canvas, preset, options = {}) {
   const photo = options.photo ?? activePhoto();
