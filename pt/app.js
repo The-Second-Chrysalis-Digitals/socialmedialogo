@@ -936,6 +936,11 @@ function syncAnchorButtons() {
 
 function renderPreview() {
   drawComposition(els.canvas, activePreset(), { preview: true, photo: activePhoto() });
+  const availableWidth = Math.max(80, els.canvas.parentElement.clientWidth - 36);
+  const previewHeight = Math.max(120, Math.min(600, window.innerHeight * 0.55));
+  const scale = Math.min(availableWidth / els.canvas.width, previewHeight / els.canvas.height);
+  els.canvas.style.width = `${Math.round(els.canvas.width * scale)}px`;
+  els.canvas.style.height = `${Math.round(els.canvas.height * scale)}px`;
   if (matchMedia("(max-width: 820px)").matches) {
     drawComposition(document.querySelector("#uploadPreviewCanvas"), activePreset(), { preview: true, photo: activePhoto() });
   }

@@ -550,7 +550,7 @@ input[type="range"] {
   top: 16px;
 }
 
-.stage .canvas-frame { align-items: start; }
+.stage .canvas-frame { place-items: start center; align-self: start; width: 100%; height: auto; }
 .upload-preview { display: none; }
 
 .stage-toolbar,

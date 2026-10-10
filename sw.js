@@ -1,4 +1,4 @@
-const CACHE_NAME = "social-photo-exporter-upload-preview-v8";
+const CACHE_NAME = "social-photo-exporter-preview-top-v9";
 const CORE_ASSETS = [
   "./",
   "index.html",
